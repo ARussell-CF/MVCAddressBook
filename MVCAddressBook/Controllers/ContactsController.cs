@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using MVCAddressBook.Data;
 using MVCAddressBook.Models;
+using MVCAddressBook.Services.Interfaces;
 
 namespace MVCAddressBook.Controllers
 {
@@ -17,11 +18,13 @@ namespace MVCAddressBook.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<AppUser> _userManager;
+        private readonly IImageService _imageService;
 
-        public ContactsController(ApplicationDbContext context, UserManager<AppUser> userManager)
+        public ContactsController(ApplicationDbContext context, UserManager<AppUser> userManager, IImageService imageService)
         {
             _context = context;
             _userManager = userManager;
+            _imageService = imageService;
         }
 
         // GET: Contacts
@@ -62,12 +65,19 @@ namespace MVCAddressBook.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,FirstName,LastName,Birthday,Address1,Address2,City,State,ZipCode,Email,Phone,ImageData,ImageType")] Contact contact)
+        public async Task<IActionResult> Create([Bind("Id,FirstName,LastName,Birthday,Address1,Address2,City,State,ZipCode,Email,Phone,ImageFile")] Contact contact)
         {
             if (ModelState.IsValid)
             {
                 contact.UserId = _userManager.GetUserId(User);
                 contact.Created = DateTime.Now;
+
+                if(contact.ImageFile is not null)
+                {
+                    contact.ImageData = await _imageService.EncodeImageAsync(contact.ImageFile);
+                    contact.ImageType = _imageService.ContentType(contact.ImageFile);
+                }
+
                 _context.Add(contact);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
@@ -97,7 +107,7 @@ namespace MVCAddressBook.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,UserId,FirstName,LastName,Birthday,Address1,Address2,City,State,ZipCode,Email,Phone,Created,ImageData,ImageType")] Contact contact)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,UserId,FirstName,LastName,Birthday,Address1,Address2,City,State,ZipCode,Email,Phone,Created,ImageData,ImageType,ImageFile")] Contact contact)
         {
             if (id != contact.Id)
             {
@@ -108,6 +118,13 @@ namespace MVCAddressBook.Controllers
             {
                 try
                 {
+
+                    if (contact.ImageFile is not null)
+                    {
+                        contact.ImageData = await _imageService.EncodeImageAsync(contact.ImageFile);
+                        contact.ImageType = _imageService.ContentType(contact.ImageFile);
+                    }
+
                     _context.Update(contact);
                     await _context.SaveChangesAsync();
                 }
