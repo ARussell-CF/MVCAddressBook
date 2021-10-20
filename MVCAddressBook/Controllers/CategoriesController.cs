@@ -27,7 +27,9 @@ namespace MVCAddressBook.Controllers
         // GET: Categories
         public async Task<IActionResult> Index()
         {
-            var applicationDbContext = _context.Categories.Include(c => c.User);
+            var userId = _userManager.GetUserId(User);
+
+            var applicationDbContext = _context.Categories.Include(c => c.Contacts).Where(c => c.UserId == userId);
             return View(await applicationDbContext.ToListAsync());
         }
 
